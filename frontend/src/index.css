@@ -1,0 +1,92 @@
+/* Custom styles for the AI Image Gallery */
+
+/* Dropzone styles */
+.dropzone {
+  border: 2px dashed #007bff;
+  border-radius: 5px;
+  padding: 20px;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.dropzone:hover {
+  border-color: #0056b3;
+  background-color: #f8f9fa;
+}
+
+/* Image card styles */
+.image-card {
+  transition: transform 0.2s;
+}
+
+.image-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.image-container {
+  position: relative;
+}
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Color palette styles */
+.color-palette {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.2);
+}
+
+.color-swatch.large {
+  width: 30px;
+  height: 30px;
+}
+
+/* Loading placeholder animation */
+.placeholder {
+  animation: placeholder-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes placeholder-glow {
+  0% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .color-swatch {
+    width: 15px;
+    height: 15px;
+  }
+  
+  .color-swatch.large {
+    width: 25px;
+    height: 25px;
+  }
+}
