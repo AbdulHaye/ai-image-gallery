@@ -13,6 +13,7 @@ The AI Image Gallery is a full-stack web application that allows users to upload
 - **File Storage**: Cloudinary (with Supabase Storage as alternative)
 - **AI Services**: OpenAI GPT-4 Vision for image analysis
 - **Image Processing**: Sharp for thumbnail generation
+- **Debounce Search**: For search after minor delay/protect extra api calls
 
 ## 🚀 Features
 

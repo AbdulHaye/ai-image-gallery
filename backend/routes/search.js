@@ -1,8 +1,97 @@
 const express = require('express');
-const { supabase } = require('../config/supabase');
+const { supabase, supabaseAdmin } = require('../config/supabase');
+const { log } = require('console');
 const router = express.Router();
 
-// Text search
+// // Text search - FIXED VERSION
+// router.get('/text', async (req, res) => {
+//   try {
+//     const token = req.headers.authorization?.replace('Bearer ', '');
+//     if (!token) {
+//       return res.status(401).json({ error: 'Authentication required' });
+//     }
+
+//     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+//     if (userError || !user) {
+//       return res.status(401).json({ error: 'Invalid authentication' });
+//     }
+
+//     const query = req.query.q;
+//     if (!query) {
+//       return res.status(400).json({ error: 'Search query is required' });
+//     }
+
+//     const page = parseInt(req.query.page) || 1;
+//     const limit = parseInt(req.query.limit) || 20;
+//     const offset = (page - 1) * limit;
+
+//     // First, search for matching image_metadata records
+//     const { data: matchingMetadata, error: metadataError } = await supabase
+//       .from('image_metadata')
+//       .select('image_id')
+//       .eq('user_id', user.id)
+//       .or(`tags.cs.{${query}},description.ilike.%${query}%`);
+
+//     if (metadataError) {
+//       console.error('Metadata search error:', metadataError);
+//       return res.status(400).json({ error: metadataError.message });
+//     }
+
+//     // Extract the image IDs from the matching metadata
+//     const imageIds = matchingMetadata.map(meta => meta.image_id);
+
+//     // If no matches found, return empty results
+//     if (imageIds.length === 0) {
+//       return res.status(200).json({
+//         images: [],
+//         pagination: {
+//           page,
+//           limit,
+//           total: 0,
+//           totalPages: 0
+//         }
+//       });
+//     }
+
+//     // Now get the images for these IDs
+//     const { data: images, error: imagesError, count } = await supabase
+//       .from('images')
+//       .select(`
+//         *,
+//         image_metadata (
+//           description,
+//           tags,
+//           colors,
+//           ai_processing_status
+//         )
+//       `, { count: 'exact' })
+//       .eq('user_id', user.id)
+//       .in('id', imageIds)
+//       .order('uploaded_at', { ascending: false })
+//       .range(offset, offset + limit - 1);
+
+//     if (imagesError) {
+//       console.error('Images search error:', imagesError);
+//       return res.status(400).json({ error: imagesError.message });
+//     }
+
+//     res.status(200).json({
+//       images: images || [],
+//       pagination: {
+//         page,
+//         limit,
+//         total: count || 0,
+//         totalPages: Math.ceil((count || 0) / limit)
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Search error:', error);
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
+
+// Text search - FIXED VERSION
 router.get('/text', async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
@@ -14,7 +103,7 @@ router.get('/text', async (req, res) => {
     if (userError || !user) {
       return res.status(401).json({ error: 'Invalid authentication' });
     }
-
+    console.log
     const query = req.query.q;
     if (!query) {
       return res.status(400).json({ error: 'Search query is required' });
@@ -24,85 +113,37 @@ router.get('/text', async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
-    // Search in tags and description
-    const { data: images, error: searchError } = await supabase
-      .from('images')
-      .select(`
-        *,
-        image_metadata (
-          description,
-          tags,
-          colors,
-          ai_processing_status
-        )
-      `)
-      .eq('user_id', user.id)
-      .or(`image_metadata.tags.cs.{${query}},image_metadata.description.ilike.%${query}%`)
-      .order('uploaded_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (searchError) {
-      return res.status(400).json({ error: searchError.message });
-    }
-
-    const { count, error: countError } = await supabase
-      .from('images')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .or(`image_metadata.tags.cs.{${query}},image_metadata.description.ilike.%${query}%`);
-
-    if (countError) {
-      return res.status(400).json({ error: countError.message });
-    }
-
-    res.status(200).json({
-      images,
-      pagination: {
-        page,
-        limit,
-        total: count,
-        totalPages: Math.ceil(count / limit)
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Similar images search
-router.get('/similar/:id', async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) {
-      return res.status(401).json({ error: 'Invalid authentication' });
-    }
-
-    const imageId = req.params.id;
-    
-    // Get the target image's metadata
-    const { data: targetImage, error: targetError } = await supabase
+    // Search in description, tags, or colors
+    const { data: matchingMetadata, error: metadataError } = await supabaseAdmin
       .from('image_metadata')
-      .select('tags, colors')
-      .eq('image_id', imageId)
+      .select('image_id')
       .eq('user_id', user.id)
-      .single();
+      .or(`description.ilike.%${query}%,tags.cs.{${query}},colors.cs.{${query}}`);
 
-    if (targetError || !targetImage) {
-      return res.status(404).json({ error: 'Image not found' });
+    // console.log('Matching metadata:', matchingMetadata);
+
+    if (metadataError) {
+      console.error('Metadata search error:', metadataError);
+      return res.status(400).json({ error: metadataError.message });
     }
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = (page - 1) * limit;
+    const imageIds = matchingMetadata.map(meta => meta.image_id);
+    // console.log('Image IDs from metadata:', imageIds);
 
-    // Find images with similar tags or colors
-    // This is a simplified approach - for production, consider using vector similarity
-    const { data: similarImages, error: similarError } = await supabase
+    if (imageIds.length === 0) {
+      return res.status(200).json({
+        images: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0
+        }
+      });
+    }
+
+    // Fetch full image data
+    const { data: images, error: imagesError, count } = await supabaseAdmin
       .from('images')
       .select(`
         *,
@@ -112,41 +153,32 @@ router.get('/similar/:id', async (req, res) => {
           colors,
           ai_processing_status
         )
-      `)
+      `, { count: 'exact' })
       .eq('user_id', user.id)
-      .neq('id', imageId)
-      .or(`image_metadata.tags.ov.{${targetImage.tags.join(',')}},image_metadata.colors.ov.{${targetImage.colors.join(',')}}`)
+      .in('id', imageIds)
       .order('uploaded_at', { ascending: false })
       .range(offset, offset + limit - 1);
-
-    if (similarError) {
-      return res.status(400).json({ error: similarError.message });
-    }
-
-    const { count, error: countError } = await supabase
-      .from('images')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .neq('id', imageId)
-      .or(`image_metadata.tags.ov.{${targetImage.tags.join(',')}},image_metadata.colors.ov.{${targetImage.colors.join(',')}}`);
-
-    if (countError) {
-      return res.status(400).json({ error: countError.message });
+    log('Fetched images:', images);
+    if (imagesError) {
+      console.error('Images search error:', imagesError);
+      return res.status(400).json({ error: imagesError.message });
     }
 
     res.status(200).json({
-      images: similarImages,
+      images: images || [],
       pagination: {
         page,
         limit,
-        total: count,
-        totalPages: Math.ceil(count / limit)
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
       }
     });
   } catch (error) {
+    console.error('Search error:', error);
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // Color search
 router.get('/color', async (req, res) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Row,
@@ -23,6 +23,7 @@ const Gallery = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -31,17 +32,29 @@ const Gallery = () => {
 
   const limit = 20;
 
+  // Debounce function to delay search
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 1000); // 1 second delay
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [searchQuery]);
+
+  // Fetch images when debounced search query or page changes
   useEffect(() => {
     fetchImages();
-  }, [currentPage, searchQuery]);
+  }, [currentPage, debouncedSearchQuery]);
 
   const fetchImages = async () => {
     try {
       setLoading(true);
       let response;
       
-      if (searchQuery) {
-        response = await searchAPI.text(searchQuery, currentPage, limit);
+      if (debouncedSearchQuery) {
+        response = await searchAPI.text(debouncedSearchQuery, currentPage, limit);
       } else {
         response = await imagesAPI.getAll(currentPage, limit);
       }
@@ -72,7 +85,13 @@ const Gallery = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     setCurrentPage(1);
-    fetchImages();
+    // Trigger search immediately when form is submitted
+    setDebouncedSearchQuery(searchQuery);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+    // Don't trigger API call here - let the debounce handle it
   };
 
   const handlePageChange = (page) => {
@@ -115,6 +134,7 @@ const Gallery = () => {
       setTotalPages(response.data.pagination.totalPages);
       setCurrentPage(1);
       setSearchQuery('');
+      setDebouncedSearchQuery('');
     } catch (error) {
       setError('Failed to search by color');
       console.error('Error searching by color:', error);
@@ -144,12 +164,19 @@ const Gallery = () => {
       setTotalPages(response.data.pagination.totalPages);
       setCurrentPage(1);
       setSearchQuery('');
+      setDebouncedSearchQuery('');
     } catch (error) {
       setError('Failed to find similar images');
       console.error('Error finding similar images:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setDebouncedSearchQuery('');
+    setCurrentPage(1);
   };
 
   const renderPagination = () => {
@@ -199,7 +226,7 @@ const Gallery = () => {
                 type="text"
                 placeholder="Search by tags or description..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
               />
               <Button variant="primary" type="submit">
                 Search
@@ -207,16 +234,18 @@ const Gallery = () => {
               {searchQuery && (
                 <Button
                   variant="outline-secondary"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setCurrentPage(1);
-                  }}
+                  onClick={handleClearSearch}
                 >
                   Clear
                 </Button>
               )}
             </InputGroup>
           </Form>
+          {searchQuery && (
+            <div className="text-muted small mt-1">
+              Searching for: "{searchQuery}" {searchQuery !== debouncedSearchQuery && '(typing...)'}
+            </div>
+          )}
         </Col>
         <Col md={4} className="text-end">
           <UploadZone
@@ -262,8 +291,8 @@ const Gallery = () => {
         <div className="text-center my-5">
           <h4>No images found</h4>
           <p>
-            {searchQuery
-              ? 'Try a different search term'
+            {debouncedSearchQuery
+              ? `No results found for "${debouncedSearchQuery}". Try a different search term.`
               : 'Upload some images to get started'}
           </p>
         </div>
@@ -296,14 +325,14 @@ const Gallery = () => {
                     {image.metadata?.ai_processing_status === 'completed' && (
                       <>
                         <div className="mb-2">
-                          {image.metadata.tags?.slice(0, 10).map((tag, i) => (
+                          {image.metadata.tags?.slice(0, 9).map((tag, i) => (
                             <Badge key={i} bg="secondary" className="me-1">
                               {tag}
                             </Badge>
                           ))}
-                          {image.metadata.tags?.length > 10 && (
+                          {image.metadata.tags?.length > 9 && (
                             <Badge bg="light" text="dark">
-                              +{image.metadata.tags.length - 10}
+                              +{image.metadata.tags.length - 9}
                             </Badge>
                           )}
                         </div>
